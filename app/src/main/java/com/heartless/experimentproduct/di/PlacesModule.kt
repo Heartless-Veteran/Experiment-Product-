@@ -1,7 +1,7 @@
 package com.heartless.experimentproduct.di
 
 import android.content.Context
-import com.heartless.experimentproduct.data.places.MapboxPlacesRepository
+import com.heartless.experimentproduct.data.places.StubPlacesRepository
 import com.heartless.experimentproduct.domain.repository.PlacesRepository
 import dagger.Module
 import dagger.Provides
@@ -12,7 +12,9 @@ import javax.inject.Singleton
 
 /**
  * Hilt module providing places-related dependencies.
- * Configures PlacesRepository with Mapbox Search SDK implementation.
+ * 
+ * Currently uses StubPlacesRepository for development/testing.
+ * TODO: Switch to MapboxPlacesRepository when credentials are configured.
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -20,13 +22,13 @@ object PlacesModule {
 
     /**
      * Provides singleton instance of PlacesRepository.
-     * Uses Mapbox Search SDK implementation.
+     * Currently uses stub implementation with mock data.
      */
     @Provides
     @Singleton
     fun providePlacesRepository(
         @ApplicationContext context: Context
     ): PlacesRepository {
-        return MapboxPlacesRepository(context)
+        return StubPlacesRepository(context)
     }
 }
