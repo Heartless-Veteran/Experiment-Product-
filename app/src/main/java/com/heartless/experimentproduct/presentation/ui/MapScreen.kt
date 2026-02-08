@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -14,7 +13,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -31,7 +32,7 @@ import com.mapbox.maps.Style
  * Composable function displaying a Mapbox map.
  * Demonstrates Jetpack Compose integration with Mapbox SDK.
  * Uses AndroidView for native view integration.
- * Handles location permissions with rememberLauncherForActivityResult.
+ * Handles location permissions with Accompanist permissions library.
  */
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -41,6 +42,7 @@ fun MapScreen(
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    var permissionRequested by remember { mutableStateOf(false) }
     
     // Location permission state
     val locationPermissionsState = rememberMultiplePermissionsState(
@@ -53,13 +55,6 @@ fun MapScreen(
     // Collect ViewModel states
     val userLocation by viewModel.userLocation.collectAsState()
     val permissionDenied by viewModel.permissionDenied.collectAsState()
-    
-    // Handle permission grant/denial
-    LaunchedEffect(locationPermissionsState.allPermissionsGranted) {
-        if (locationPermissionsState.allPermissionsGranted) {
-            viewModel.onPermissionGranted()
-        }
-    }
     
     // Show snackbar when permission is denied
     LaunchedEffect(permissionDenied) {
@@ -74,19 +69,26 @@ fun MapScreen(
     
     // Request permission on first composition
     LaunchedEffect(Unit) {
-        if (!locationPermissionsState.allPermissionsGranted) {
-            locationPermissionsState.launchMultiplePermissionRequest()
-        } else {
+        if (locationPermissionsState.allPermissionsGranted) {
+            // Permissions already granted
             viewModel.onPermissionGranted()
+        } else {
+            // Request permissions
+            locationPermissionsState.launchMultiplePermissionRequest()
+            permissionRequested = true
         }
     }
     
-    // Update permission denied state when user denies
-    LaunchedEffect(locationPermissionsState.shouldShowRationale) {
-        if (!locationPermissionsState.allPermissionsGranted && 
-            !locationPermissionsState.shouldShowRationale) {
-            // Permission was denied
-            viewModel.onPermissionDenied()
+    // Handle permission result after request
+    LaunchedEffect(locationPermissionsState.allPermissionsGranted) {
+        if (permissionRequested) {
+            if (locationPermissionsState.allPermissionsGranted) {
+                viewModel.onPermissionGranted()
+            } else {
+                // Permission was denied
+                viewModel.onPermissionDenied()
+            }
+            permissionRequested = false
         }
     }
     
