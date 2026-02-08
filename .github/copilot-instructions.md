@@ -166,7 +166,7 @@ class MyViewModel @Inject constructor(
   - Data layer implementations should transform data entities (e.g., `LocationPinEntity`) to domain models (e.g., `LocationPin`) internally before returning results
   - Use `Flow` for reactive data streams
 - **Legacy/transition code:**
-  - Some existing use cases (for example, `GetLocationPinsUseCase` in `domain/`) currently depend directly on concrete `data.repository.LocationPinRepository` class and perform entity-to-domain mapping within the use case itself, importing `data.database.LocationPinEntity`.
+  - Some existing use cases (e.g., `GetLocationPinsUseCase` in `domain/`) currently depend directly on concrete `data.repository.LocationPinRepository` class and perform entity-to-domain mapping within the use case itself, importing `data.database.LocationPinEntity`.
   - Do **not** copy this pattern for new features. When you touch these legacy areas, prefer to:
     - Introduce a domain-level repository interface in `domain/repository/`
     - Move entity-to-domain mapping logic into the data layer implementation
@@ -205,10 +205,10 @@ class MyViewModel @Inject constructor(
 ### Important Notes
 
 - Mapbox requires a **Downloads Token** for dependency resolution
-- **Security Warning**: The `gradle.properties` file is currently tracked in version control with a placeholder token. To prevent secret leakage:
+- **Security Warning**: The `gradle.properties` file is tracked in version control (check `git ls-files gradle.properties`) with a placeholder token. To prevent accidentally committing real tokens:
   - **Option 1 (Recommended for local development)**: Set `MAPBOX_DOWNLOADS_TOKEN` as an environment variable instead of in `gradle.properties`
   - **Option 2**: Use a user-level Gradle properties file at `~/.gradle/gradle.properties` to store the token
-  - **Option 3**: Add `gradle.properties` to `.gitignore` and create a `gradle.properties.example` file with placeholder values
+  - **Option 3**: Add `gradle.properties` to `.gitignore` and create a `gradle.properties.example` file with placeholder values for other developers
 - Token must be a **secret** token (starting with `sk.`) with Downloads:Read scope
 - Never commit real tokens to version control
 - Mapbox Maven repository is configured in `settings.gradle.kts`
