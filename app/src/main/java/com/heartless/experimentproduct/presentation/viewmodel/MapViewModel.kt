@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.heartless.experimentproduct.domain.location.GetUserLocationUseCase
 import com.heartless.experimentproduct.domain.location.UserLocation
 import com.heartless.experimentproduct.domain.model.LocationPin
+import com.heartless.experimentproduct.domain.model.Station
+import com.heartless.experimentproduct.domain.places.GetNearbyPlacesUseCase
 import com.heartless.experimentproduct.domain.usecase.GetLocationPinsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,13 +20,14 @@ import javax.inject.Inject
 /**
  * ViewModel for the main map screen.
  * Demonstrates Hilt injection and StateFlow for state management.
- * Uses Clean Architecture use case for data access.
- * Handles location permission and user location state.
+ * Uses Clean Architecture use cases for data access.
+ * Handles location permission, user location state, and nearby places.
  */
 @HiltViewModel
 class MapViewModel @Inject constructor(
     getLocationPinsUseCase: GetLocationPinsUseCase,
-    private val getUserLocationUseCase: GetUserLocationUseCase
+    private val getUserLocationUseCase: GetUserLocationUseCase,
+    private val getNearbyPlacesUseCase: GetNearbyPlacesUseCase
 ) : ViewModel() {
     
     val locationPins: StateFlow<List<LocationPin>> = getLocationPinsUseCase()
@@ -40,6 +43,12 @@ class MapViewModel @Inject constructor(
     private val _permissionDenied = MutableStateFlow(false)
     val permissionDenied: StateFlow<Boolean> = _permissionDenied.asStateFlow()
 
+    private val _nearbyPlaces = MutableStateFlow<List<Station>>(emptyList())
+    val nearbyPlaces: StateFlow<List<Station>> = _nearbyPlaces.asStateFlow()
+
+    private val _isLoadingPlaces = MutableStateFlow(false)
+    val isLoadingPlaces: StateFlow<Boolean> = _isLoadingPlaces.asStateFlow()
+
     /**
      * Formats user location for display.
      * @return Formatted location string or loading message
@@ -53,17 +62,45 @@ class MapViewModel @Inject constructor(
     /**
      * Fetches the user's current location.
      * Uses city-center fallback if permission is denied or location is unavailable.
+     * Automatically fetches nearby places after location is obtained.
      */
     fun fetchUserLocation() {
         viewModelScope.launch {
             val location = getUserLocationUseCase()
             _userLocation.value = location
+            
+            // Automatically fetch nearby places when location is available
+            fetchNearbyPlaces()
+        }
+    }
+
+    /**
+     * Fetches nearby places within 1 mile of the user's current location.
+     * Results are filtered to only show places that are currently open,
+     * sorted by distance in ascending order.
+     */
+    fun fetchNearbyPlaces() {
+        val location = _userLocation.value ?: return
+        
+        viewModelScope.launch {
+            try {
+                _isLoadingPlaces.value = true
+                
+                getNearbyPlacesUseCase(location).collect { places ->
+                    _nearbyPlaces.value = places
+                    _isLoadingPlaces.value = false
+                }
+            } catch (e: Exception) {
+                // On error, clear places and stop loading
+                _nearbyPlaces.value = emptyList()
+                _isLoadingPlaces.value = false
+            }
         }
     }
 
     /**
      * Called when location permission is granted.
-     * Automatically fetches user location.
+     * Automatically fetches user location and nearby places.
      */
     fun onPermissionGranted() {
         _permissionDenied.value = false
