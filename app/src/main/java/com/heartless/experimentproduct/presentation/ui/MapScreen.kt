@@ -77,6 +77,7 @@ fun MapScreen(
             lastPermissionState == null -> {
                 if (currentState) {
                     viewModel.onPermissionGranted()
+                    hasRequestedPermission = true
                 } else {
                     locationPermissionsState.launchMultiplePermissionRequest()
                     hasRequestedPermission = true
@@ -89,7 +90,6 @@ fun MapScreen(
                 } else {
                     viewModel.onPermissionDenied()
                 }
-                hasRequestedPermission = false
             }
         }
         
@@ -117,9 +117,9 @@ fun MapScreen(
         }
         
         // Info text overlay
-        val locationText = userLocation?.let {
-            "Location: ${String.format("%.4f", it.latitude)}, ${String.format("%.4f", it.longitude)}"
-        } ?: "Fetching location..."
+        val locationText = remember(userLocation) {
+            viewModel.getLocationDisplayText()
+        }
         
         Text(
             text = locationText,

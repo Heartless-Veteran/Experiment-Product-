@@ -41,6 +41,16 @@ class MapViewModel @Inject constructor(
     val permissionDenied: StateFlow<Boolean> = _permissionDenied.asStateFlow()
 
     /**
+     * Formats user location for display.
+     * @return Formatted location string or loading message
+     */
+    fun getLocationDisplayText(): String {
+        return _userLocation.value?.let {
+            "Location: ${String.format("%.4f", it.latitude)}, ${String.format("%.4f", it.longitude)}"
+        } ?: "Fetching location..."
+    }
+
+    /**
      * Fetches the user's current location.
      * Uses city-center fallback if permission is denied or location is unavailable.
      */

@@ -26,10 +26,6 @@ class GetUserLocationUseCase @Inject constructor(
      */
     suspend operator fun invoke(): UserLocation {
         return try {
-            if (!locationService.hasLocationPermission()) {
-                return defaultLocation
-            }
-
             val result = locationService.getCurrentLocation()
             result?.let {
                 UserLocation(
@@ -37,9 +33,8 @@ class GetUserLocationUseCase @Inject constructor(
                     longitude = it.longitude
                 )
             } ?: defaultLocation
-        } catch (e: SecurityException) {
-            defaultLocation
         } catch (e: Exception) {
+            // Includes SecurityException, IOException, or any other error
             defaultLocation
         }
     }
