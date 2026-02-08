@@ -11,7 +11,7 @@ This is an Android application built with modern Android development practices, 
 - **Async Processing**: Kotlin Coroutines & Flow
 - **Database**: Room (local persistence)
 - **Maps**: Mapbox Maps SDK v11
-- **Build System**: Gradle 8.2 with Kotlin DSL
+- **Build System**: Gradle 8.2.0 with Kotlin DSL
 - **Min SDK**: 26, Target SDK: 34
 
 ## Code Standards
@@ -107,7 +107,7 @@ Dependencies only point inward:
 val uiState: StateFlow<UiState> = repository.getData()
     .stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
+        started = SharingStarted.WhileSubscribed(5000), // 5000ms stopTimeout allows brief disconnections without stopping flow
         initialValue = UiState.Loading
     )
 ```
@@ -185,7 +185,7 @@ class MyViewModel @Inject constructor(
 - Write unit tests for ViewModels using fake/mock use cases
 - Write unit tests for use cases with mocked repositories
 - Test repositories with in-memory Room database when possible
-- Use JUnit 4 (already configured)
+- Use JUnit 4 (configured for compatibility with Android testing framework)
 - Place tests in `app/src/test/` for unit tests
 - Place instrumented tests in `app/src/androidTest/` for UI tests
 
