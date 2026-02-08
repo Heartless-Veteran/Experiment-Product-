@@ -176,45 +176,93 @@ class StubPlacesRepository @Inject constructor() : PlacesRepository {
         val currentHour = now.get(Calendar.HOUR_OF_DAY)
         val currentMinute = now.get(Calendar.MINUTE)
         
-        // Generate closing time between current time + 30 minutes and 11:30 PM
-        // This ensures all generated places are currently open
-        val minClosingHour = if (currentHour >= 23) {
-            return null // Too late, place would be closed
-        } else if (currentMinute >= 30) {
-            currentHour + 1
-        } else {
-            currentHour
-        }
+        // Calculate minimum closing time (at least 30 minutes from now)
+        val minClosingCalendar = now.clone() as Calendar
+        minClosingCalendar.add(Calendar.MINUTE, 30)
         
-        val maxClosingHour = 23 // 11 PM
+        val minClosingHour = minClosingCalendar.get(Calendar.HOUR_OF_DAY)
+        val minClosingMinute = minClosingCalendar.get(Calendar.MINUTE)
         
-        if (minClosingHour > maxClosingHour) {
-            return null // Would be closed
-        }
+        // Maximum closing time is 11:30 PM
+        val maxClosingHour = 23
+        val maxClosingMinute = 30
         
-        val closingHour = Random.nextInt(minClosingHour, maxClosingHour + 1)
-        val closingMinute = if (closingHour > currentHour) {
-            // Can be any time in the hour
-            if (Random.nextBoolean()) 0 else 30
-        } else {
-            // Must be after current minute
-            if (currentMinute < 30) 30 else 0
-        }
-        
-        // Recalculate if we ended up with an invalid time
-        if (closingHour == currentHour && closingMinute <= currentMinute) {
+        // If minimum closing time is already past max, place would be closed
+        if (minClosingHour > maxClosingHour || 
+            (minClosingHour == maxClosingHour && minClosingMinute > maxClosingMinute)) {
             return null
         }
         
-        // Check if closing within 1 hour
-        val minutesUntilClose = (closingHour - currentHour) * 60 + (closingMinute - currentMinute)
-        val closingSoon = minutesUntilClose in 0..60
+        // Generate a random closing time between min and max
+        val closingHour = Random.nextInt(minClosingHour, maxClosingHour + 1)
+        val closingMinute = if (closingHour == minClosingHour) {
+            // If same hour as minimum, must be at or after minimum minute
+            if (minClosingMinute <= 30) {
+                if (Random.nextBoolean()) minClosingMinute else 30
+            } else {
+                // Round up to next hour
+                return generateClosingInfoForHour(minClosingHour + 1, 0, maxClosingHour, maxClosingMinute, now)
+            }
+        } else if (closingHour == maxClosingHour) {
+            // If max hour, must not exceed max minute
+            if (Random.nextBoolean()) 0 else Math.min(30, maxClosingMinute)
+        } else {
+            // Middle hours can be 0 or 30
+            if (Random.nextBoolean()) 0 else 30
+        }
         
-        // Format closing time
+        // Calculate minutes until closing
         val closingCalendar = now.clone() as Calendar
         closingCalendar.set(Calendar.HOUR_OF_DAY, closingHour)
         closingCalendar.set(Calendar.MINUTE, closingMinute)
+        closingCalendar.set(Calendar.SECOND, 0)
         
+        val minutesUntilClose = ((closingCalendar.timeInMillis - now.timeInMillis) / (60 * 1000)).toInt()
+        
+        // Double-check we generated a valid future time
+        if (minutesUntilClose <= 0) {
+            return null
+        }
+        
+        val closingSoon = minutesUntilClose in 1..60
+        
+        // Format closing time
+        val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
+        val closingTimeStr = timeFormat.format(closingCalendar.time)
+        
+        return Pair(closingTimeStr, closingSoon)
+    }
+    
+    /**
+     * Helper function to generate closing info for a specific hour range.
+     */
+    private fun generateClosingInfoForHour(
+        hour: Int, 
+        minMinute: Int, 
+        maxHour: Int, 
+        maxMinute: Int,
+        now: Calendar
+    ): Pair<String?, Boolean>? {
+        if (hour > maxHour) return null
+        
+        val closingMinute = if (hour == maxHour) {
+            if (Random.nextBoolean()) 0 else Math.min(30, maxMinute)
+        } else {
+            if (Random.nextBoolean()) 0 else 30
+        }
+        
+        val closingCalendar = now.clone() as Calendar
+        closingCalendar.set(Calendar.HOUR_OF_DAY, hour)
+        closingCalendar.set(Calendar.MINUTE, closingMinute)
+        closingCalendar.set(Calendar.SECOND, 0)
+        
+        val minutesUntilClose = ((closingCalendar.timeInMillis - now.timeInMillis) / (60 * 1000)).toInt()
+        
+        if (minutesUntilClose <= 0) {
+            return null
+        }
+        
+        val closingSoon = minutesUntilClose in 1..60
         val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
         val closingTimeStr = timeFormat.format(closingCalendar.time)
         
