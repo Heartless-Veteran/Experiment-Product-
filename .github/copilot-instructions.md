@@ -69,9 +69,9 @@ app/src/main/java/com/heartless/experimentproduct/
 
 2. **Domain Layer** (`domain/`):
    - Contains business logic and models
-   - Pure Kotlin with no Android dependencies
+   - Written in Kotlin; may depend on selected Android-backed services (e.g., location) where needed
    - Use cases encapsulate specific business operations
-   - Repository interfaces define contracts
+   - Repository interfaces and service abstractions define contracts
 
 3. **Presentation Layer** (`presentation/`):
    - MVVM architecture with ViewModels
@@ -80,9 +80,10 @@ app/src/main/java/com/heartless/experimentproduct/
 
 ### Dependency Flow
 
-Dependencies only point inward:
-- Presentation → Domain → Data
-- Inner layers know nothing about outer layers
+Dependencies point inward toward the Domain layer:
+- Presentation → Domain
+- Data → Domain
+- Domain must not depend on Presentation or Data layers; it defines interfaces that outer layers implement
 
 ## Key Guidelines
 
@@ -159,16 +160,25 @@ class MyViewModel @Inject constructor(
 
 ### 7. Repository Pattern
 
-- Define repository interfaces in `domain/repository/`
-- Implement repositories in `data/repository/` or feature-specific folders
-- Repositories should transform data entities to domain models
-- Use Flow for reactive data
+- **Preferred pattern (for all new or refactored code):**
+  - Define repository interfaces in `domain/repository/`
+  - Implement repositories in `data/repository/` or feature-specific folders
+  - Repositories should transform data entities (e.g., `LocationPinEntity`) to domain models (e.g., `LocationPin`)
+  - Use `Flow` for reactive data streams
+- **Legacy/transition code:**
+  - Some existing use cases (for example, `GetLocationPinsUseCase` in `domain/`) currently depend directly on `data.repository.LocationPinRepository` and `data.database.LocationPinEntity`.
+  - Do **not** copy this pattern for new features. When you touch these legacy areas, prefer to:
+    - Introduce a domain-level repository interface in `domain/repository/`, and
+    - Move entity-to-domain mapping logic into the data layer implementation.
+  - Until that refactor is completed, keep behavior stable and avoid partial changes that could break the existing flow.
 
 ### 8. Use Cases
 
 - One use case per business operation
 - Use case classes should have an `operator fun invoke()` method
 - Use cases orchestrate business logic and call repositories
+- Use cases should **depend on domain repository interfaces**, not concrete data-layer implementations, for all new or refactored features.
+- Existing exceptions (such as the current location pins flow mentioned above) are considered legacy and should be migrated toward the preferred pattern when they are next modified.
 - Keep use cases simple and focused
 
 ### 9. Naming Conventions
@@ -194,9 +204,12 @@ class MyViewModel @Inject constructor(
 ### Important Notes
 
 - Mapbox requires a **Downloads Token** for dependency resolution
-- Token should be in `gradle.properties` as `MAPBOX_DOWNLOADS_TOKEN=sk.your_token`
-- Token must be a **secret** token with Downloads:Read scope
-- Never commit the token to version control (already in `.gitignore`)
+- **Security Warning**: The `gradle.properties` file is currently tracked in version control with a placeholder token. To prevent secret leakage:
+  - **Option 1 (Recommended for local development)**: Set `MAPBOX_DOWNLOADS_TOKEN` as an environment variable instead of in `gradle.properties`
+  - **Option 2**: Use a user-level Gradle properties file at `~/.gradle/gradle.properties` to store the token
+  - **Option 3**: Add `gradle.properties` to `.gitignore` and create a `gradle.properties.example` file with placeholder values
+- Token must be a **secret** token (starting with `sk.`) with Downloads:Read scope
+- Never commit real tokens to version control
 - Mapbox Maven repository is configured in `settings.gradle.kts`
 
 ### Current Implementation
