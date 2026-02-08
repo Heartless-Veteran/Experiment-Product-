@@ -78,7 +78,7 @@ The following food and drink categories are included:
 ## Requirements Implemented
 
 ✅ **1-Mile Radius:** Hard cap at 1609 meters  
-✅ **Open Now Filter:** Only shows currently open places  
+✅ **Open Now Filter:** Stub generates only currently open places; production will use API filter  
 ✅ **Distance Sort:** Results sorted by distance (ascending)  
 ✅ **Multiple Categories:** All 8 required categories supported  
 ✅ **StateFlow Exposure:** Reactive data flow with StateFlow  

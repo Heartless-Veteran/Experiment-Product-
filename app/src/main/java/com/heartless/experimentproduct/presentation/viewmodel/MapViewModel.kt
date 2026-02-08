@@ -9,10 +9,14 @@ import com.heartless.experimentproduct.domain.model.Station
 import com.heartless.experimentproduct.domain.places.GetNearbyPlacesUseCase
 import com.heartless.experimentproduct.domain.usecase.GetLocationPinsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -49,6 +53,9 @@ class MapViewModel @Inject constructor(
     private val _isLoadingPlaces = MutableStateFlow(false)
     val isLoadingPlaces: StateFlow<Boolean> = _isLoadingPlaces.asStateFlow()
 
+    // Track the current places fetch job to cancel on new requests
+    private var fetchPlacesJob: Job? = null
+
     /**
      * Formats user location for display.
      * @return Formatted location string or loading message
@@ -78,23 +85,29 @@ class MapViewModel @Inject constructor(
      * Fetches nearby places within 1 mile of the user's current location.
      * Results are filtered to only show places that are currently open,
      * sorted by distance in ascending order.
+     * Cancels any previous fetch operation to prevent race conditions.
      */
     fun fetchNearbyPlaces() {
         val location = _userLocation.value ?: return
         
-        viewModelScope.launch {
-            try {
-                _isLoadingPlaces.value = true
-                
-                getNearbyPlacesUseCase(location).collect { places ->
-                    _nearbyPlaces.value = places
+        // Cancel any previous fetch operation
+        fetchPlacesJob?.cancel()
+        
+        fetchPlacesJob = viewModelScope.launch {
+            getNearbyPlacesUseCase(location)
+                .onStart {
+                    _isLoadingPlaces.value = true
+                }
+                .onCompletion {
                     _isLoadingPlaces.value = false
                 }
-            } catch (e: Exception) {
-                // On error, clear places and stop loading
-                _nearbyPlaces.value = emptyList()
-                _isLoadingPlaces.value = false
-            }
+                .catch { _ ->
+                    // On error, clear places
+                    _nearbyPlaces.value = emptyList()
+                }
+                .collect { places ->
+                    _nearbyPlaces.value = places
+                }
         }
     }
 

@@ -73,7 +73,7 @@ Successfully implemented a complete Places Repository system that fetches food a
 2. **Mapbox Search SDK** - ✅ Integration path documented, stub implemented
 3. **Categories** - ✅ All 8 categories supported (restaurant, cafe, bakery, gas_station, pharmacy, convenience_store, grocery, food_truck)
 4. **Radius** - ✅ Hard capped at 1 mile (1609 meters)
-5. **Filter** - ✅ open_now = true implemented in stub, ready for production
+5. **Filter** - ✅ open_now filter implemented in stub (only generates open places); production implementation will use Mapbox API filter
 6. **Sort** - ✅ Distance ascending
 7. **Station Model** - ✅ Complete with all required fields
 8. **StateFlow** - ✅ Exposed via MapViewModel

@@ -1,10 +1,8 @@
 package com.heartless.experimentproduct.data.places
 
-import android.content.Context
 import com.heartless.experimentproduct.domain.location.UserLocation
 import com.heartless.experimentproduct.domain.model.Station
 import com.heartless.experimentproduct.domain.repository.PlacesRepository
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -31,14 +29,12 @@ import kotlin.random.Random
  * **Current Behavior:**
  * - Generates realistic mock places around user location
  * - Simulates the 1-mile radius constraint
- * - Filters for "open now" status
+ * - Filters for "open now" status (only generates future closing times)
  * - Sorts by distance ascending
  * - Returns proper Station models with all required fields
  */
 @Singleton
-class StubPlacesRepository @Inject constructor(
-    @ApplicationContext private val context: Context
-) : PlacesRepository {
+class StubPlacesRepository @Inject constructor() : PlacesRepository {
 
     /**
      * Supported food and drink categories as specified in the requirements.
@@ -111,29 +107,32 @@ class StubPlacesRepository @Inject constructor(
                 
                 val location = generateNearbyLocation(userLocation, distance, angle)
                 
-                // Generate closing time (simulating places open now)
+                // Generate closing time (only future times to simulate "open now")
                 val closingInfo = generateClosingInfo()
                 
-                val placeName = if (index < placeNames.size) {
-                    placeNames[index]
-                } else {
-                    "${placeNames[0]} ${index + 1}"
+                // Only add if the place is open (closing time is in the future)
+                if (closingInfo != null) {
+                    val placeName = if (index < placeNames.size) {
+                        placeNames[index]
+                    } else {
+                        "${placeNames[0]} ${index + 1}"
+                    }
+                    
+                    val station = Station(
+                        id = "${category}_${placeName.replace(" ", "_").lowercase()}_$index",
+                        name = placeName,
+                        distance = distance,
+                        line = category.replace("_", " ").replaceFirstChar { 
+                            if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() 
+                        },
+                        lineColor = categoryColors[category] ?: "#6C757D",
+                        openUntil = closingInfo.first,
+                        closingSoon = closingInfo.second,
+                        location = location
+                    )
+                    
+                    places.add(station)
                 }
-                
-                val station = Station(
-                    id = "${category}_${placeName.replace(" ", "_").lowercase()}_$index",
-                    name = placeName,
-                    distance = distance,
-                    line = category.replace("_", " ").replaceFirstChar { 
-                        if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() 
-                    },
-                    lineColor = categoryColors[category] ?: "#6C757D",
-                    openUntil = closingInfo.first,
-                    closingSoon = closingInfo.second,
-                    location = location
-                )
-                
-                places.add(station)
             }
         }
 
@@ -168,19 +167,47 @@ class StubPlacesRepository @Inject constructor(
     }
 
     /**
-     * Generates mock closing time information.
-     * Returns (closing time string, is closing soon boolean).
+     * Generates mock closing time information for places that are currently open.
+     * Returns (closing time string, is closing soon boolean) or null if the place would be closed.
+     * Only generates future closing times to simulate "open now" filter.
      */
-    private fun generateClosingInfo(): Pair<String?, Boolean> {
+    private fun generateClosingInfo(): Pair<String?, Boolean>? {
         val now = Calendar.getInstance()
         val currentHour = now.get(Calendar.HOUR_OF_DAY)
+        val currentMinute = now.get(Calendar.MINUTE)
         
-        // Most places close between 8 PM and 11 PM
-        val closingHour = Random.nextInt(20, 24)
-        val closingMinute = if (Random.nextBoolean()) 0 else 30
+        // Generate closing time between current time + 30 minutes and 11:30 PM
+        // This ensures all generated places are currently open
+        val minClosingHour = if (currentHour >= 23) {
+            return null // Too late, place would be closed
+        } else if (currentMinute >= 30) {
+            currentHour + 1
+        } else {
+            currentHour
+        }
+        
+        val maxClosingHour = 23 // 11 PM
+        
+        if (minClosingHour > maxClosingHour) {
+            return null // Would be closed
+        }
+        
+        val closingHour = Random.nextInt(minClosingHour, maxClosingHour + 1)
+        val closingMinute = if (closingHour > currentHour) {
+            // Can be any time in the hour
+            if (Random.nextBoolean()) 0 else 30
+        } else {
+            // Must be after current minute
+            if (currentMinute < 30) 30 else 0
+        }
+        
+        // Recalculate if we ended up with an invalid time
+        if (closingHour == currentHour && closingMinute <= currentMinute) {
+            return null
+        }
         
         // Check if closing within 1 hour
-        val minutesUntilClose = (closingHour - currentHour) * 60 + (closingMinute - now.get(Calendar.MINUTE))
+        val minutesUntilClose = (closingHour - currentHour) * 60 + (closingMinute - currentMinute)
         val closingSoon = minutesUntilClose in 0..60
         
         // Format closing time

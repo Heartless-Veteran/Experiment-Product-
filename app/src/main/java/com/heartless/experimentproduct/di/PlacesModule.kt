@@ -1,12 +1,10 @@
 package com.heartless.experimentproduct.di
 
-import android.content.Context
 import com.heartless.experimentproduct.data.places.StubPlacesRepository
 import com.heartless.experimentproduct.domain.repository.PlacesRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
@@ -26,9 +24,7 @@ object PlacesModule {
      */
     @Provides
     @Singleton
-    fun providePlacesRepository(
-        @ApplicationContext context: Context
-    ): PlacesRepository {
-        return StubPlacesRepository(context)
+    fun providePlacesRepository(): PlacesRepository {
+        return StubPlacesRepository()
     }
 }
