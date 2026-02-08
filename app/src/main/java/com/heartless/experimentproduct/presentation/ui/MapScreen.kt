@@ -42,7 +42,8 @@ fun MapScreen(
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
-    var permissionRequested by remember { mutableStateOf(false) }
+    var hasRequestedPermission by remember { mutableStateOf(false) }
+    var lastPermissionState by remember { mutableStateOf<Boolean?>(null) }
     
     // Location permission state
     val locationPermissionsState = rememberMultiplePermissionsState(
@@ -67,29 +68,32 @@ fun MapScreen(
         }
     }
     
-    // Request permission on first composition
-    LaunchedEffect(Unit) {
-        if (locationPermissionsState.allPermissionsGranted) {
-            // Permissions already granted
-            viewModel.onPermissionGranted()
-        } else {
-            // Request permissions
-            locationPermissionsState.launchMultiplePermissionRequest()
-            permissionRequested = true
-        }
-    }
-    
-    // Handle permission result after request
+    // Handle permission state changes
     LaunchedEffect(locationPermissionsState.allPermissionsGranted) {
-        if (permissionRequested) {
-            if (locationPermissionsState.allPermissionsGranted) {
-                viewModel.onPermissionGranted()
-            } else {
-                // Permission was denied
-                viewModel.onPermissionDenied()
+        val currentState = locationPermissionsState.allPermissionsGranted
+        
+        when {
+            // First composition - check if already granted or request
+            lastPermissionState == null -> {
+                if (currentState) {
+                    viewModel.onPermissionGranted()
+                } else {
+                    locationPermissionsState.launchMultiplePermissionRequest()
+                    hasRequestedPermission = true
+                }
             }
-            permissionRequested = false
+            // Permission state changed after request
+            hasRequestedPermission && currentState != lastPermissionState -> {
+                if (currentState) {
+                    viewModel.onPermissionGranted()
+                } else {
+                    viewModel.onPermissionDenied()
+                }
+                hasRequestedPermission = false
+            }
         }
+        
+        lastPermissionState = currentState
     }
     
     Box(modifier = modifier.fillMaxSize()) {
