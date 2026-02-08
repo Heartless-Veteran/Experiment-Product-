@@ -12,6 +12,7 @@ import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.cos
+import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
 
@@ -173,12 +174,12 @@ class StubPlacesRepository @Inject constructor() : PlacesRepository {
      */
     private fun generateClosingInfo(): Pair<String?, Boolean>? {
         val now = Calendar.getInstance()
-        val currentHour = now.get(Calendar.HOUR_OF_DAY)
-        val currentMinute = now.get(Calendar.MINUTE)
         
         // Calculate minimum closing time (at least 30 minutes from now)
-        val minClosingCalendar = now.clone() as Calendar
-        minClosingCalendar.add(Calendar.MINUTE, 30)
+        val minClosingCalendar = Calendar.getInstance().apply {
+            timeInMillis = now.timeInMillis
+            add(Calendar.MINUTE, 30)
+        }
         
         val minClosingHour = minClosingCalendar.get(Calendar.HOUR_OF_DAY)
         val minClosingMinute = minClosingCalendar.get(Calendar.MINUTE)
@@ -201,21 +202,23 @@ class StubPlacesRepository @Inject constructor() : PlacesRepository {
                 if (Random.nextBoolean()) minClosingMinute else 30
             } else {
                 // Round up to next hour
-                return generateClosingInfoForHour(minClosingHour + 1, 0, maxClosingHour, maxClosingMinute, now)
+                return generateClosingInfoForHour(minClosingHour + 1, maxClosingHour, maxClosingMinute, now)
             }
         } else if (closingHour == maxClosingHour) {
             // If max hour, must not exceed max minute
-            if (Random.nextBoolean()) 0 else Math.min(30, maxClosingMinute)
+            if (Random.nextBoolean()) 0 else min(30, maxClosingMinute)
         } else {
             // Middle hours can be 0 or 30
             if (Random.nextBoolean()) 0 else 30
         }
         
         // Calculate minutes until closing
-        val closingCalendar = now.clone() as Calendar
-        closingCalendar.set(Calendar.HOUR_OF_DAY, closingHour)
-        closingCalendar.set(Calendar.MINUTE, closingMinute)
-        closingCalendar.set(Calendar.SECOND, 0)
+        val closingCalendar = Calendar.getInstance().apply {
+            timeInMillis = now.timeInMillis
+            set(Calendar.HOUR_OF_DAY, closingHour)
+            set(Calendar.MINUTE, closingMinute)
+            set(Calendar.SECOND, 0)
+        }
         
         val minutesUntilClose = ((closingCalendar.timeInMillis - now.timeInMillis) / (60 * 1000)).toInt()
         
@@ -237,8 +240,7 @@ class StubPlacesRepository @Inject constructor() : PlacesRepository {
      * Helper function to generate closing info for a specific hour range.
      */
     private fun generateClosingInfoForHour(
-        hour: Int, 
-        minMinute: Int, 
+        hour: Int,
         maxHour: Int, 
         maxMinute: Int,
         now: Calendar
@@ -246,15 +248,17 @@ class StubPlacesRepository @Inject constructor() : PlacesRepository {
         if (hour > maxHour) return null
         
         val closingMinute = if (hour == maxHour) {
-            if (Random.nextBoolean()) 0 else Math.min(30, maxMinute)
+            if (Random.nextBoolean()) 0 else min(30, maxMinute)
         } else {
             if (Random.nextBoolean()) 0 else 30
         }
         
-        val closingCalendar = now.clone() as Calendar
-        closingCalendar.set(Calendar.HOUR_OF_DAY, hour)
-        closingCalendar.set(Calendar.MINUTE, closingMinute)
-        closingCalendar.set(Calendar.SECOND, 0)
+        val closingCalendar = Calendar.getInstance().apply {
+            timeInMillis = now.timeInMillis
+            set(Calendar.HOUR_OF_DAY, hour)
+            set(Calendar.MINUTE, closingMinute)
+            set(Calendar.SECOND, 0)
+        }
         
         val minutesUntilClose = ((closingCalendar.timeInMillis - now.timeInMillis) / (60 * 1000)).toInt()
         
